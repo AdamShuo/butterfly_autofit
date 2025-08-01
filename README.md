@@ -1,5 +1,21 @@
 # 蝴蝶画板 - 内摆线轨迹绘制器
 
+## 项目徽章
+
+| 类别 | 徽章 | 描述 |
+|------|------|------|
+| GitHub | ![GitHub Stars](https://img.shields.io/github/stars/AdamShuo/butterfly_autofit?style=flat-square) | 项目 Star 数 |
+|  | ![GitHub Forks](https://img.shields.io/github/forks/AdamShuo/butterfly_autofit?style=flat-square) | 项目 Fork 数 |
+|  | ![GitHub Issues](https://img.shields.io/github/issues/AdamShuo/butterfly_autofit?style=flat-square) | 待解决问题 |
+|  | ![GitHub Release](https://img.shields.io/github/v/release/AdamShuo/butterfly_autofit?style=flat-square) | 最新版本 |
+| 构建 | ![Build Status](https://img.shields.io/github/actions/workflow/status/AdamShuo/butterfly_autofit/main.yml?style=flat-square) | 构建状态 |
+| 代码质量 | ![Codecov](https://img.shields.io/codecov/c/github/AdamShuo/butterfly_autofit?style=flat-square) | 代码覆盖率 |
+| 依赖 | ![Dependencies](https://img.shields.io/david/AdamShuo/butterfly_autofit?style=flat-square) | 依赖状态 |
+| 社区 | ![Contributors](https://img.shields.io/github/contributors/AdamShuo/butterfly_autofit?style=flat-square) | 贡献者数 |
+| 活跃度 | ![Last Commit](https://img.shields.io/github/last-commit/AdamShuo/butterfly_autofit?style=flat-square) | 最后提交 |
+|  | ![Activity](https://img.shields.io/github/commit-activity/m/AdamShuo/butterfly_autofit?style=flat-square) | 每月提交 |
+| 许可证 | ![License](https://img.shields.io/github/license/AdamShuo/butterfly_autofit?style=flat-square) | 开源协议 |
+
 ## 项目简介
 这是一个基于 HTML5 Canvas 的动态内摆线轨迹绘制工具，支持实时调整参数和颜色设置，生成美丽的蝴蝶状轨迹。
 
