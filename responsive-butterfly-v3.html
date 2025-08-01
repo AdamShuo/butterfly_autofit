@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>蝴蝶画板 - 内摆线轨迹绘制器</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Microsoft YaHei', Arial, sans-serif; 
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); 
+            color: white; 
+            overflow: hidden; 
+            width: 100%;
+            height: 100%;
+            position: fixed;
+        }
+        .container { 
+            display: flex; 
+            flex-direction: row; 
+            height: 100%; 
+            width: 100%;
+        }
+        .control-panel { 
+            width: 320px; 
+            background: rgba(30, 41, 59, 0.95); 
+            backdrop-filter: blur(10px); 
+            border-right: 1px solid rgba(71, 85, 105, 0.3); 
+            padding: 20px; 
+            overflow-y: auto; 
+            box-shadow: 2px 0 20px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+        .canvas-area { 
+            flex: 1; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            background: linear-gradient(135deg, #2d3748 0%, #4a5568 50%, #2d3748 100%); 
+            position: relative; 
+            overflow: hidden;
+        }
+        .title { text-align: center; margin-bottom: 20px; }
+        .title h1 { 
+            font-size: 24px; 
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            margin-bottom: 8px; 
+        }
+        .title p { color: #94a3b8; font-size: 14px; }
+        .control-group { 
+            background: rgba(51, 65, 85, 0.6); 
+            border: 1px solid rgba(71, 85, 105, 0.3); 
+            border-radius: 12px; 
+            padding: 20px; 
+            margin-bottom: 20px; 
+            backdrop-filter: blur(5px); 
+        }
+        .control-group h3 { 
+            color: #e2e8f0; 
+            font-size: 16px; 
+            margin-bottom: 15px; 
+            display: flex; 
+            align-items: center; 
+        }
+        .control-group h3::before { 
+            content: ''; 
+            width: 4px; 
+            height: 16px; 
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6); 
+            border-radius: 2px; 
+            margin-right: 8px; 
+        }
+        .slider-container { margin-bottom: 15px; }
+        .slider-label { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 8px; 
+            color: #cbd5e1; 
+            font-size: 14px; 
+        }
+        .slider { 
+            width: 100%; 
+            height: 6px; 
+            border-radius: 3px; 
+            background: rgba(71, 85, 105, 0.5); 
+            outline: none; 
+            -webkit-appearance: none; 
+            position: relative; 
+        }
+        .slider::-webkit-slider-thumb { 
+            -webkit-appearance: none; 
+            width: 18px; 
+            height: 18px; 
+            border-radius: 50%; 
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6); 
+            cursor: pointer; 
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5); 
+            transition: all 0.2s ease; 
+        }
+        .slider::-webkit-slider-thumb:hover { 
+            transform: scale(1.1); 
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.8); 
+        }
+        .button { 
+            width: 100%; 
+            padding: 12px; 
+            border: none; 
+            border-radius: 8px; 
+            font-size: 14px; 
+            font-weight: 500; 
+            cursor: pointer; 
+            transition: all 0.3s ease; 
+            margin-bottom: 10px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 8px; 
+        }
+        .button-primary { background: linear-gradient(45deg, #3b82f6, #8b5cf6); color: white; }
+        .button-success { background: linear-gradient(45deg, #10b981, #059669); color: white; }
+        .button-danger { background: linear-gradient(45deg, #ef4444, #dc2626); color: white; }
+        .button-outline { 
+            background: transparent; 
+            color: #cbd5e1; 
+            border: 1px solid rgba(71, 85, 105, 0.5); 
+        }
+        .button-outline:hover { 
+            background: rgba(71, 85, 105, 0.3); 
+            border-color: #3b82f6; 
+        }
+        .status-info { 
+            background: rgba(51, 65, 85, 0.4); 
+            border-radius: 8px; 
+            padding: 15px; 
+            font-size: 13px; 
+            color: #94a3b8; 
+        }
+        .status-info div { margin-bottom: 5px; }
+        #canvas { 
+            border: 2px solid rgba(59, 130, 246, 0.3); 
+            border-radius: 8px; 
+            cursor: crosshair; 
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.2);
+            max-width: 100%;
+            max-height: 100%;
+            touch-action: none; /* 防止触摸设备上的缩放 */
+        }
+        .icon { width: 16px; height: 16px; fill: currentColor; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .recording { animation: pulse 1s infinite; }
+        
+        /* 响应式设计 */
+        .menu-toggle {
+            display: none;
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 200;
+            background: rgba(30, 41, 59, 0.9);
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            color: white;
+            font-size: 24px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* 媒体查询 - 平板 */
+        @media (max-width: 1024px) {
+            .container {
+                flex-direction: column;
+            }
+            .control-panel {
+                width: 100%;
+                height: 40%;
+                min-height: 300px;
+                border-right: none;
+                border-bottom: 1px solid rgba(71, 85, 105, 0.3);
+                overflow-y: auto;
+                overflow-x: hidden;
+            }
+            .canvas-area {
+                height: 60%;
+                width: 100%;
+            }
+        }
+        
+        /* 媒体查询 - 手机 */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            /* 手机竖屏模式 */
+            @media (orientation: portrait) {
+                .container {
+                    display: flex;
+                    flex-direction: column;
+                }
+                .canvas-area {
+                    height: 60%;
+                    width: 100%;
+                    padding: 10px;
+                }
+                .control-panel {
+                    position: relative;
+                    left: 0;
+                    width: 100%;
+                    height: 40%;
+                    min-height: 0;
+                    padding: 10px;
+                    border-top: 1px solid rgba(71, 85, 105, 0.3);
+                    overflow-y: auto;
+                }
+                .canvas-container {
+                    width: 100%;
+                    height: 100%;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                }
+                #canvas {
+                    width: 90vw;
+                    height: 90vw;
+                    max-height: 90%;
+                }
+                .title h1 {
+                    font-size: 18px;
+                }
+                .title p {
+                    font-size: 12px;
+                }
+                .control-group {
+                    padding: 10px;
+                    margin-bottom: 10px;
+                }
+                .control-group h3 {
+                    font-size: 14px;
+                    margin-bottom: 10px;
+                }
+                .button {
+                    padding: 8px;
+                    font-size: 12px;
+                }
+                
+                /* 简化的控制面板 */
+                .mobile-controls {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 10px;
+                }
+                .mobile-controls .button {
+                    flex: 1 0 calc(50% - 5px);
+                    margin-bottom: 5px;
+                }
+            }
+            
+            /* 手机横屏模式 */
+            @media (orientation: landscape) {
+                .container {
+                    flex-direction: row;
+                }
+                .canvas-area {
+                    width: 60%;
+                    height: 100%;
+                }
+                .control-panel {
+                    width: 40%;
+                    height: 100%;
+                    overflow-y: auto;
+                }
+                .canvas-container {
+                    height: 100%;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                }
+                #canvas {
+                    height: 90%;
+                    width: 90%;
+                    max-width: 90vh;
+                    max-height: 90vh;
+                }
+            }
+        }
+        
+        /* 控制面板选项卡 */
+        .tabs {
+            display: none;
+        }
+        
+        @media (max-width: 768px) and (orientation: portrait) {
+            .tabs {
+                display: flex;
+                margin-bottom: 10px;
+            }
+            .tab {
+                flex: 1;
+                text-align: center;
+                padding: 8px;
+                background: rgba(51, 65, 85, 0.4);
+                color: #cbd5e1;
+                cursor: pointer;
+                border-bottom: 2px solid transparent;
+            }
+            .tab.active {
+                border-bottom: 2px solid #3b82f6;
+                color: white;
+            }
+            .tab-content {
+                display: none;
+            }
+            .tab-content.active {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="canvas-area">
+            <div class="canvas-container">
+                <canvas id="canvas"></canvas>
+            </div>
+        </div>
+        <div id="controlPanel" class="control-panel">
+            <div class="title">
+                <h1>蝴蝶画板</h1>
+                <p>内摆线轨迹绘制器</p>
+            </div>
+            
+            <!-- 手机版选项卡 -->
+            <div class="tabs">
+                <div class="tab active" data-tab="controls">控制</div>
+                <div class="tab" data-tab="colors">颜色</div>
+                <div class="tab" data-tab="settings">设置</div>
+            </div>
+            
+            <div id="controlsTab" class="tab-content active">
+                <div class="control-group">
+                    <h3>半径设置</h3>
+                    <div class="slider-container">
+                        <div class="slider-label"><span>大圆半径</span><span id="bigRadiusValue">200</span></div>
+                        <input type="range" id="bigRadiusSlider" class="slider" min="50" max="300" value="200">
+                    </div>
+                    <div class="slider-container">
+                        <div class="slider-label"><span>小圆半径</span><span id="smallRadiusValue">100</span></div>
+                        <input type="range" id="smallRadiusSlider" class="slider" min="5" max="200" value="100">
+                    </div>
+                    <button id="randomRadius" class="button button-outline">随机小圆半径</button>
+                </div>
+                
+                <div class="control-group">
+                    <h3>动画控制</h3>
+                    <div class="mobile-controls">
+                        <button id="toggleRolling" class="button button-success">开始滚动</button>
+                        <button id="toggleTracing" class="button button-primary">停止轨迹</button>
+                        <button id="clearTrajectory" class="button button-outline">清除轨迹</button>
+                        <button id="toggleFullscreen" class="button button-outline">全屏显示</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="colorsTab" class="tab-content">
+                <div class="control-group">
+                    <h3>轨迹颜色</h3>
+                    <div class="slider-container">
+                        <div class="slider-label"><span>红色</span><span id="redValue">0</span></div>
+                        <input type="range" id="redSlider" class="slider" min="0" max="255" value="0">
+                    </div>
+                    <div class="slider-container">
+                        <div class="slider-label"><span>绿色</span><span id="greenValue">150</span></div>
+                        <input type="range" id="greenSlider" class="slider" min="0" max="255" value="150">
+                    </div>
+                    <div class="slider-container">
+                        <div class="slider-label"><span>蓝色</span><span id="blueValue">255</span></div>
+                        <input type="range" id="blueSlider" class="slider" min="0" max="255" value="255">
+                    </div>
+                    <button id="randomColor" class="button button-outline">随机颜色</button>
+                    <button id="toggleGradient" class="button button-outline">渐变颜色</button>
+                </div>
+            </div>
+            
+            <div id="settingsTab" class="tab-content">
+                <div class="control-group">
+                    <h3>其他设置</h3>
+                    <button id="exportImage" class="button button-outline">导出图片</button>
+                    <div class="status-info">
+                        <div>轨迹点数: <span id="trajectoryCount">0</span></div>
+                        <div>状态: <span id="status">已停止</span></div>
+                        <div>轨迹记录: <span id="tracingStatus">开启</span></div>
+                        <div>渐变模式: <span id="gradientStatus">关闭</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let canvas = document.getElementById('canvas');
+        let ctx = canvas.getContext('2d');
+        let bigRadius = 200, smallRadius = 100;
+        let color = { r: 0, g: 150, b: 255 };
+        let isRolling = false, isTracing = true, isGradientMode = false;
+        let trajectory = [];
+        let bigAngle = 0, smallAngle = 0;
+        let animationId = null, lastTime = 0, startRollingTime = 0;
+        let hue = 0, gradientSpeed = 2;
+
+        // 选项卡切换
+        const tabs = document.querySelectorAll('.tab');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                // 移除所有选项卡的活动状态
+                tabs.forEach(t => t.classList.remove('active'));
+                // 添加当前选项卡的活动状态
+                this.classList.add('active');
+                
+                // 隐藏所有内容
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                
+                // 显示当前选项卡对应的内容
+                const tabId = this.getAttribute('data-tab');
+                document.getElementById(tabId + 'Tab').classList.add('active');
+            });
+        });
+
+        // 阻止默认的触摸行为，防止在移动设备上缩放
+        document.addEventListener('touchmove', function(e) {
+            if (e.touches.length > 1) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        function initEventListeners() {
+            document.getElementById('bigRadiusSlider').oninput = function(e) {
+                bigRadius = parseInt(e.target.value);
+                document.getElementById('bigRadiusValue').textContent = bigRadius;
+                updateSmallRadiusMax();
+                draw();
+            };
+            document.getElementById('smallRadiusSlider').oninput = function(e) {
+                smallRadius = parseInt(e.target.value);
+                document.getElementById('smallRadiusValue').textContent = smallRadius;
+                draw();
+            };
+            document.getElementById('redSlider').oninput = function(e) {
+                color.r = parseInt(e.target.value);
+                document.getElementById('redValue').textContent = color.r;
+                updateColorPreview();
+            };
+            document.getElementById('greenSlider').oninput = function(e) {
+                color.g = parseInt(e.target.value);
+                document.getElementById('greenValue').textContent = color.g;
+                updateColorPreview();
+            };
+            document.getElementById('blueSlider').oninput = function(e) {
+                color.b = parseInt(e.target.value);
+                document.getElementById('blueValue').textContent = color.b;
+                updateColorPreview();
+            };
+            document.getElementById('toggleRolling').onclick = toggleRolling;
+            document.getElementById('toggleTracing').onclick = toggleTracing;
+            document.getElementById('toggleGradient').onclick = toggleGradient;
+            document.getElementById('clearTrajectory').onclick = clearTrajectory;
+            document.getElementById('exportImage').onclick = exportImage;
+            document.getElementById('randomRadius').onclick = randomRadius;
+            document.getElementById('randomColor').onclick = randomColor;
+            document.getElementById('toggleFullscreen').onclick = toggleFullscreen;
+            updateColorPreview();
+            
+            // 监听窗口大小变化和方向变化，调整画布大小
+            window.addEventListener('resize', resizeCanvas);
+            window.addEventListener('orientationchange', function() {
+                // 方向改变后稍微延迟以确保新尺寸已应用
+                setTimeout(resizeCanvas, 300);
+            });
+        }
+
+        function resizeCanvas() {
+            const canvasContainer = document.querySelector('.canvas-container');
+            const isMobile = window.innerWidth <= 768;
+            const isPortrait = window.innerHeight > window.innerWidth;
+            
+            if (isMobile) {
+                if (isPortrait) {
+                    // 手机竖屏模式
+                    const canvasArea = document.querySelector('.canvas-area');
+                    const availableHeight = canvasArea.clientHeight - 20; // 减去内边距
+                    const size = Math.min(window.innerWidth * 0.9, availableHeight * 0.9);
+                    canvas.width = size;
+                    canvas.height = size;
+                } else {
+                    // 手机横屏模式
+                    const canvasArea = document.querySelector('.canvas-area');
+                    const availableHeight = canvasArea.clientHeight - 20;
+                    const availableWidth = canvasArea.clientWidth - 20;
+                    const size = Math.min(availableWidth * 0.9, availableHeight * 0.9);
+                    canvas.width = size;
+                    canvas.height = size;
+                }
+            } else {
+                // 桌面或平板模式
+                const canvasArea = document.querySelector('.canvas-area');
+                const padding = 20;
+                
+                // 获取可用空间
+                const availableWidth = canvasArea.clientWidth - (padding * 2);
+                const availableHeight = canvasArea.clientHeight - (padding * 2);
+                
+                // 设置画布大小，保持比例
+                let size = Math.min(availableWidth, availableHeight) * 0.9;
+                canvas.width = size;
+                canvas.height = size;
+            }
+            
+            // 清除轨迹并重新绘制
+            trajectory = [];
+            draw();
+        }
+
+        function updateSmallRadiusMax() {
+            let slider = document.getElementById('smallRadiusSlider');
+            slider.max = bigRadius;
+            if (smallRadius > bigRadius) {
+                smallRadius = bigRadius;
+                slider.value = smallRadius;
+                document.getElementById('smallRadiusValue').textContent = smallRadius;
+            }
+        }
+
+        function updateColorPreview() {
+            let btn = document.getElementById('randomColor');
+            btn.style.backgroundColor = `rgb(${color.r}, ${color.g}, ${color.b})`;
+            let brightness = (color.r * 299 + color.g * 587 + color.b * 114) / 1000;
+            btn.style.color = brightness > 128 ? '#000000' : '#ffffff';
+        }
+
+        function updateColorSliders() {
+            document.getElementById('redSlider').value = color.r;
+            document.getElementById('redValue').textContent = color.r;
+            document.getElementById('greenSlider').value = color.g;
+            document.getElementById('greenValue').textContent = color.g;
+            document.getElementById('blueSlider').value = color.b;
+            document.getElementById('blueValue').textContent = color.b;
+            updateColorPreview();
+        }
+
+        function hslToRgb(h, s, l) {
+            let r, g, b;
+            if (s === 0) {
+                r = g = b = l;
+            } else {
+                let hue2rgb = function(p, q, t) {
+                    if (t < 0) t += 1;
+                    if (t > 1) t -= 1;
+                    if (t < 1/6) return p + (q - p) * 6 * t;
+                    if (t < 1/2) return q;
+                    if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+                    return p;
+                };
+                let q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+                let p = 2 * l - q;
+                r = hue2rgb(p, q, h + 1/3);
+                g = hue2rgb(p, q, h);
+                b = hue2rgb(p, q, h - 1/3);
+            }
+            return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
+        }
+
+        function calculateHypocycloid() {
+            let centerX = canvas.width / 2;
+            let centerY = canvas.height / 2;
+            
+            // 根据画布大小调整半径
+            const scaleFactor = Math.min(canvas.width, canvas.height) / 800;
+            const adjustedBigRadius = bigRadius * scaleFactor;
+            const adjustedSmallRadius = smallRadius * scaleFactor;
+            
+            let smallCenterX = centerX + (adjustedBigRadius - adjustedSmallRadius) * Math.cos(bigAngle);
+            let smallCenterY = centerY + (adjustedBigRadius - adjustedSmallRadius) * Math.sin(bigAngle);
+            let pointX = smallCenterX + adjustedSmallRadius * Math.cos(smallAngle);
+            let pointY = smallCenterY + adjustedSmallRadius * Math.sin(smallAngle);
+            
+            return { 
+                smallCenterX, 
+                smallCenterY, 
+                pointX, 
+                pointY, 
+                adjustedBigRadius, 
+                adjustedSmallRadius 
+            };
+        }
+
+        function draw() {
+            ctx.fillStyle = '#1a202c';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            let centerX = canvas.width / 2;
+            let centerY = canvas.height / 2;
+            
+            let positions = calculateHypocycloid();
+            
+            ctx.strokeStyle = '#718096';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, positions.adjustedBigRadius, 0, 2 * Math.PI);
+            ctx.stroke();
+            
+            ctx.strokeStyle = '#f56565';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(positions.smallCenterX, positions.smallCenterY, positions.adjustedSmallRadius, 0, 2 * Math.PI);
+            ctx.stroke();
+            
+            if (trajectory.length > 1) {
+                ctx.lineWidth = 2;
+                for (let i = 1; i < trajectory.length; i++) {
+                    let prevPoint = trajectory[i - 1];
+                    let currentPoint = trajectory[i];
+                    if (!currentPoint.isNewSegment) {
+                        ctx.strokeStyle = prevPoint.color;
+                        ctx.beginPath();
+                        ctx.moveTo(prevPoint.x, prevPoint.y);
+                        ctx.lineTo(currentPoint.x, currentPoint.y);
+                        ctx.stroke();
+                    }
+                }
+            }
+            
+            ctx.fillStyle = '#63b3ed';
+            ctx.beginPath();
+            ctx.arc(positions.pointX, positions.pointY, 5, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            document.getElementById('trajectoryCount').textContent = trajectory.length;
+        }
+
+        function animate(currentTime) {
+            if (!isRolling) return;
+            
+            if (currentTime - lastTime > 16) {
+                bigAngle += 0.02;
+                smallAngle -= (bigRadius / smallRadius) * 0.02;
+                
+                if (isGradientMode) {
+                    hue += gradientSpeed;
+                    if (hue >= 360) hue = 0;
+                    let rgb = hslToRgb(hue / 360, 0.8, 0.6);
+                    color.r = rgb.r;
+                    color.g = rgb.g;
+                    color.b = rgb.b;
+                    updateColorSliders();
+                }
+                
+                if (isTracing) {
+                    let positions = calculateHypocycloid();
+                    let currentColor = `rgb(${color.r}, ${color.g}, ${color.b})`;
+                    let newPoint = {
+                        x: positions.pointX,
+                        y: positions.pointY,
+                        color: currentColor,
+                        isNewSegment: false
+                    };
+                    
+                    if (trajectory.length === 0 || (currentTime - startRollingTime) <= 50) {
+                        newPoint.isNewSegment = true;
+                    }
+                    
+                    if (trajectory.length === 0 || 
+                        Math.abs(trajectory[trajectory.length - 1].x - newPoint.x) > 1 || 
+                        Math.abs(trajectory[trajectory.length - 1].y - newPoint.y) > 1) {
+                        trajectory.push(newPoint);
+                    }
+                }
+                
+                draw();
+                lastTime = currentTime;
+            }
+            
+            animationId = requestAnimationFrame(animate);
+        }
+
+        function toggleRolling() {
+            isRolling = !isRolling;
+            let button = document.getElementById('toggleRolling');
+            let status = document.getElementById('status');
+            
+            if (isRolling) {
+                startRollingTime = performance.now();
+                button.innerHTML = '停止滚动';
+                button.className = 'button button-danger';
+                status.textContent = '运行中';
+                status.classList.add('recording');
+                animationId = requestAnimationFrame(animate);
+            } else {
+                button.innerHTML = '开始滚动';
+                button.className = 'button button-success';
+                status.textContent = '已停止';
+                status.classList.remove('recording');
+                if (animationId) cancelAnimationFrame(animationId);
+            }
+        }
+
+        function toggleTracing() {
+            isTracing = !isTracing;
+            let button = document.getElementById('toggleTracing');
+            let status = document.getElementById('tracingStatus');
+            
+            if (isTracing) {
+                button.innerHTML = '停止轨迹';
+                button.className = 'button button-primary';
+                status.textContent = '开启';
+            } else {
+                button.innerHTML = '开始轨迹';
+                button.className = 'button button-outline';
+                status.textContent = '关闭';
+            }
+        }
+
+        function toggleGradient() {
+            isGradientMode = !isGradientMode;
+            let button = document.getElementById('toggleGradient');
+            let status = document.getElementById('gradientStatus');
+            
+            if (isGradientMode) {
+                button.innerHTML = '停止渐变';
+                button.className = 'button button-primary';
+                status.textContent = '开启';
+            } else {
+                button.innerHTML = '渐变颜色';
+                button.className = 'button button-outline';
+                status.textContent = '关闭';
+            }
+        }
+
+        function clearTrajectory() {
+            trajectory = [];
+            draw();
+        }
+
+        function randomRadius() {
+            smallRadius = Math.floor(Math.random() * (bigRadius - 5) + 5);
+            document.getElementById('smallRadiusSlider').value = smallRadius;
+            document.getElementById('smallRadiusValue').textContent = smallRadius;
+            draw();
+        }
+
+        function randomColor() {
+            color.r = Math.floor(Math.random() * 256);
+            color.g = Math.floor(Math.random() * 256);
+            color.b = Math.floor(Math.random() * 256);
+            updateColorSliders();
+        }
+
+        function exportImage() {
+            let exportCanvas = document.createElement('canvas');
+            exportCanvas.width = canvas.width;
+            exportCanvas.height = canvas.height;
+            let exportCtx = exportCanvas.getContext('2d');
+            
+            exportCtx.fillStyle = '#ffffff';
+            exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+            
+            if (trajectory.length > 1) {
+                exportCtx.lineWidth = 2;
+                for (let i = 1; i < trajectory.length; i++) {
+                    let prevPoint = trajectory[i - 1];
+                    let currentPoint = trajectory[i];
+                    if (!currentPoint.isNewSegment) {
+                        exportCtx.strokeStyle = prevPoint.color;
+                        exportCtx.beginPath();
+                        exportCtx.moveTo(prevPoint.x, prevPoint.y);
+                        exportCtx.lineTo(currentPoint.x, currentPoint.y);
+                        exportCtx.stroke();
+                    }
+                }
+            }
+            
+            let link = document.createElement('a');
+            link.download = 'butterfly-trajectory.png';
+            link.href = exportCanvas.toDataURL();
+            link.click();
+        }
+        
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.error(`全屏错误: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        window.onload = function() {
+            initEventListeners();
+            resizeCanvas(); // 初始化画布大小
+            draw();
+        };
+    </script>
+</body>
+</html>
